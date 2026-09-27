@@ -22,11 +22,24 @@ let handle = localStorage.getItem("commitscape.handle") || "commitscape-demo";
 let artRepo = null, artStyle = "river", artPalette = "nocturne";
 
 /* ————— data ————— */
+/* demo dataset served from Supabase (demo row, read-only) with the bundled snapshot as offline fallback */
+const SB_URL = "https://iljapbrjcxhtymtkiuea.supabase.co", SB_KEY = "sb_publishable_bKtD9c5Q0GzMFNOZQ58z8A_WCIxbRt8";
+let DEMO_REMOTE = null;
+async function loadDemoRemote() {
+  try {
+    const r = await fetch(SB_URL + "/rest/v1/commitscape_demo?id=eq.commitscape-demo&select=payload", { headers: { apikey: SB_KEY } });
+    if (!r.ok) throw 0;
+    const rows = await r.json();
+    if (!Array.isArray(rows) || !rows.length) throw 0;
+    DEMO_REMOTE = rows[0].payload;
+  } catch (e) { DEMO_REMOTE = null; }
+}
 function normalizeDemo() {
+  const D = DEMO_REMOTE || DEMO;
   return {
-    source: "demo",
-    user: DEMO.user, repos: DEMO.repos, events: DEMO.events,
-    languages: DEMO.languages, commits: DEMO.commits
+    source: "demo", dbLive: !!DEMO_REMOTE, fetchedAt: D.fetchedAt,
+    user: D.user, repos: D.repos, events: D.events,
+    languages: D.languages, commits: D.commits
   };
 }
 async function fetchLive(h) {
@@ -127,12 +140,12 @@ function render() {
   const activeDays = Object.keys(counts).length;
   const totalEvents = d.events.reduce((a, e) => a + (e.commits || 1), 0);
 
-  $("#data-pill").textContent = d.source === "live" ? "live from api.github.com" : "bundled demo · synthetic · " + new Date(DEMO.fetchedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  $("#data-pill").textContent = d.source === "live" ? "live from api.github.com" : (d.dbLive ? "demo dataset · live from db · synthetic" : "bundled demo · synthetic · " + new Date(d.fetchedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }));
   $("#data-pill").classList.toggle("live", d.source === "live");
   $("#user-input").value = u.login;
 
   $("#app").innerHTML = `
-    ${d.source === "demo" ? `<div class="notice">Showing a <b>bundled snapshot</b> of @${esc(u.login)} (synthetic demo data, fetched ${new Date(DEMO.fetchedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}). Hit <b>observe</b> for live data — unauthenticated API allows 60 requests/hour.</div>` : ""}
+    ${d.source === "demo" ? `<div class="notice">Showing the <b>${d.dbLive ? "demo dataset, served live from the demo database" : "bundled snapshot"}</b> of @${esc(u.login)} (synthetic demo data, fetched ${new Date(d.fetchedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}). Hit <b>observe</b> for live data — unauthenticated API allows 60 requests/hour.</div>` : ""}
     <div class="profile">
       <img class="avatar" src="${esc(u.avatar_url)}" alt="" onerror="this.style.visibility='hidden'">
       <div class="profile-main">
@@ -283,4 +296,4 @@ $("#user-form").addEventListener("submit", e => {
   if (h) load(h, true);
 });
 
-load(handle, false);
+(async () => { await loadDemoRemote(); load(handle, false); })();
