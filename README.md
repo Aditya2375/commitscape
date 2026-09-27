@@ -9,7 +9,7 @@ Open `index.html` in a browser, or serve the folder with any static server.
 ## Features
 
 - **Live mode**: fetches the public GitHub REST API (unauthenticated, 60 requests/hour) — profile, repos, events, languages, streaks.
-- **Bundled snapshot**: falls back to a baked snapshot of @Aditya2375 (his real public data, fetched 27 Sept 2026) so the app works offline or when rate-limited.
+- **Bundled demo**: falls back to a baked synthetic dataset for the fictional account @commitscape-demo (not a real GitHub user) so the app works offline or when rate-limited.
 - **Activity heatmap** for the last ~16 weeks, current + longest streak, actions in 90 days.
 - **Repo table** with language dots, stars, and push dates.
 - **Commit art**: three generative styles (river, bloom, static) × three palettes (nocturne, phosphor, ember), downloadable as PNG. Each mark is a real commit.

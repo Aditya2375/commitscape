@@ -18,7 +18,7 @@ const LANG_COLORS = {
 const langColor = l => LANG_COLORS[l] || "#5f6673";
 
 let DATA = null;        // normalized dataset
-let handle = localStorage.getItem("commitscape.handle") || "Aditya2375";
+let handle = localStorage.getItem("commitscape.handle") || "commitscape-demo";
 let artRepo = null, artStyle = "river", artPalette = "nocturne";
 
 /* ————— data ————— */
@@ -127,7 +127,7 @@ function render() {
   const activeDays = Object.keys(counts).length;
   const totalEvents = d.events.reduce((a, e) => a + (e.commits || 1), 0);
 
-  $("#data-pill").textContent = d.source === "live" ? "live from api.github.com" : "bundled snapshot · " + new Date(DEMO.fetchedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  $("#data-pill").textContent = d.source === "live" ? "live from api.github.com" : "bundled demo · synthetic · " + new Date(DEMO.fetchedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   $("#data-pill").classList.toggle("live", d.source === "live");
   $("#user-input").value = u.login;
 
@@ -263,10 +263,10 @@ async function load(h, forceLive) {
   localStorage.setItem("commitscape.handle", h);
   $("#app").innerHTML = `<div class="loading">observing @${esc(h)}</div>`;
   try {
-    if (forceLive || h.toLowerCase() !== "aditya2375") DATA = await fetchLive(h);
+    if (forceLive || h.toLowerCase() !== "commitscape-demo") DATA = await fetchLive(h);
     else DATA = normalizeDemo();
   } catch (e) {
-    if (h.toLowerCase() === "aditya2375") {
+    if (h.toLowerCase() === "commitscape-demo") {
       DATA = normalizeDemo();
       toast("API unavailable — showing bundled snapshot");
     } else {
