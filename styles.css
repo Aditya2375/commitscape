@@ -162,3 +162,6 @@ th.num { text-align: right; }
   .data-pill { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+
+/* mobile: let wide tables scroll inside their panel */
+.table-wrap { overflow-x: auto; }

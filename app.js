@@ -178,12 +178,12 @@ function render() {
     </div>
 
     <div class="section"><div class="section-head"><span class="section-title">REPOSITORIES</span><span class="section-note">${d.repos.length} public</span></div>
-      <table class="repo-table"><thead><tr><th>Name</th><th>Language</th><th class="num">★</th><th class="num">Forks</th><th class="num">Updated</th></tr></thead>
+      <div class="table-wrap"><table class="repo-table"><thead><tr><th>Name</th><th>Language</th><th class="num">★</th><th class="num">Forks</th><th class="num">Updated</th></tr></thead>
       <tbody>${d.repos.map(r => `<tr>
         <td><a class="repo-name" href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a>${r.description ? `<div class="repo-desc">${esc(r.description)}</div>` : ""}</td>
         <td>${r.language ? `<span class="repo-lang"><span class="lang-dot" style="background:${langColor(r.language)}"></span>${esc(r.language)}</span>` : `<span style="color:var(--ink-3)">—</span>`}</td>
         <td class="num">${r.stars}</td><td class="num">${r.forks}</td>
-        <td class="num">${new Date(r.updated_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</td></tr>`).join("")}</tbody></table>
+        <td class="num">${new Date(r.updated_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</td></tr>`).join("")}</tbody></table></div>
     </div>
 
     <div class="section"><div class="section-head"><span class="section-title">COMMITSCAPE</span><span class="section-note">history, as a print</span></div>
