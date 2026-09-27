@@ -132,7 +132,7 @@ function render() {
   $("#user-input").value = u.login;
 
   $("#app").innerHTML = `
-    ${d.source === "demo" ? `<div class="notice">Showing a <b>bundled snapshot</b> of @${esc(u.login)} (his real public data, fetched ${new Date(DEMO.fetchedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}). Hit <b>observe</b> for live data — unauthenticated API allows 60 requests/hour.</div>` : ""}
+    ${d.source === "demo" ? `<div class="notice">Showing a <b>bundled snapshot</b> of @${esc(u.login)} (synthetic demo data, fetched ${new Date(DEMO.fetchedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}). Hit <b>observe</b> for live data — unauthenticated API allows 60 requests/hour.</div>` : ""}
     <div class="profile">
       <img class="avatar" src="${esc(u.avatar_url)}" alt="" onerror="this.style.visibility='hidden'">
       <div class="profile-main">
