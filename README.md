@@ -2,6 +2,8 @@
 
 A GitHub observatory. Point it at any public GitHub username and it renders the account's activity as charts, stats, and generative art — no account needed, nothing stored server-side (there is no server).
 
+Live: https://aditya2375.github.io/commitscape/
+
 ## Run it
 
 Open `index.html` in a browser, or serve the folder with any static server.
