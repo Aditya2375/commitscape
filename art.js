@@ -17,7 +17,7 @@ const PALETTES = {
   ember: { bg: "#120c0a", cols: ["#e06c5a", "#e8b23a", "#d4915e", "#8a7fd4", "#f0dcc8", "#5f3a30"] }
 };
 
-function renderCommitscape(canvas, commits, styleName, paletteName, onCaption) {
+function renderCommitscape(canvas, commits, styleName, paletteName, onCaption, synthetic=false) {
   const W = 1400, H = 800;
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext("2d");
@@ -135,7 +135,7 @@ function renderCommitscape(canvas, commits, styleName, paletteName, onCaption) {
   ctx.fillStyle = "rgba(232,230,223,0.55)";
   ctx.font = "12px 'IBM Plex Mono', monospace";
   ctx.textAlign = "left";
-  ctx.fillText("COMMITSCAPE — " + items.length + " commits", 40, H - 38);
+  ctx.fillText("COMMITSCAPE - " + items.length + (synthetic?" SYNTHETIC DEMO COMMITS":" RECENT COMMITS"), 40, H - 38);
   ctx.textAlign = "right";
   const first = items[0] ? new Date(items[0].c.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";
   const last = items[items.length - 1] ? new Date(items[items.length - 1].c.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";
