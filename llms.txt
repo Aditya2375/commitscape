@@ -1,0 +1,5 @@
+# Commitscape
+
+https://aditya2375.github.io/commitscape/
+
+Bounded recent public GitHub snapshots, not a full contribution graph. No private data or tokens accepted. Demo account, commits and repository names are synthetic. Observed streaks are incomplete UTC event streaks, not GitHub contribution streaks.
