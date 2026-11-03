@@ -18,22 +18,18 @@ const LANG_COLORS = {
 const langColor = l => LANG_COLORS[l] || "#5f6673";
 
 let DATA = null;        // normalized dataset
-let handle = localStorage.getItem("commitscape.handle") || "commitscape-demo";
+let handle='commitscape-demo';try{handle=localStorage.getItem('commitscape.handle')||handle}catch{}
+const validHandle=h=>typeof h==='string' && /^[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?$/i.test(h) && !h.includes('--');
+if(!validHandle(handle))handle='commitscape-demo';
+let loadVersion=0,artVersion=0,activeController=null;
+async function request(url,signal){const r=await fetch(url,{signal,headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw Error(r.status===403||r.status===429?'GitHub rate limit or access restriction. Try later.':r.status===404?'Public user or repository not found.':'GitHub request failed ('+r.status+').');const text=await r.text();if(text.length>3000000)throw Error('Response exceeds3MB limit');return JSON.parse(text)}
+
 let artRepo = null, artStyle = "river", artPalette = "nocturne";
 
 /* ————— data ————— */
-/* demo dataset served from Supabase (demo row, read-only) with the bundled snapshot as offline fallback */
-const SB_URL = "https://iljapbrjcxhtymtkiuea.supabase.co", SB_KEY = "sb_publishable_bKtD9c5Q0GzMFNOZQ58z8A_WCIxbRt8";
-let DEMO_REMOTE = null;
-async function loadDemoRemote() {
-  try {
-    const r = await fetch(SB_URL + "/rest/v1/commitscape_demo?id=eq.commitscape-demo&select=payload", { headers: { apikey: SB_KEY } });
-    if (!r.ok) throw 0;
-    const rows = await r.json();
-    if (!Array.isArray(rows) || !rows.length) throw 0;
-    DEMO_REMOTE = rows[0].payload;
-  } catch (e) { DEMO_REMOTE = null; }
-}
+// The synthetic demo is bundled, never a live person's activity.
+const DEMO_REMOTE=null;
+async function loadDemoRemote(){}
 function normalizeDemo() {
   const D = DEMO_REMOTE || DEMO;
   return {
@@ -42,14 +38,8 @@ function normalizeDemo() {
     languages: D.languages, commits: D.commits
   };
 }
-async function fetchLive(h) {
-  const token = localStorage.getItem("commitscape.token");
-  const headers = token ? { Authorization: "Bearer " + token } : {};
-  const get = async url => {
-    const r = await fetch(url, { headers });
-    if (!r.ok) throw new Error(url + " → " + r.status);
-    return r.json();
-  };
+async function fetchLive(h,signal) {
+  const get = url => request(url,signal);
   const user = await get(`https://api.github.com/users/${h}`);
   const reposRaw = await get(`https://api.github.com/users/${h}/repos?per_page=100&sort=updated`);
   const events = (await get(`https://api.github.com/users/${h}/events/public?per_page=100`)).map(e => ({
@@ -62,11 +52,11 @@ async function fetchLive(h) {
     created_at: r.created_at, size: r.size, url: r.html_url, topics: r.topics || []
   }));
   const languages = {};
-  await Promise.all(repos.slice(0, 15).map(async r => {
-    try { languages[r.name] = await get(`https://api.github.com/repos/${h}/${r.name}/languages`); } catch (e) {}
-  }));
+  let next=0,failed=0;
+  await Promise.all(Array.from({length:3},async()=>{while(next<Math.min(repos.length,15)){const r=repos[next++];try{languages[r.name]=await get(`https://api.github.com/repos/${h}/${encodeURIComponent(r.name)}/languages`)}catch(e){if(signal.aborted)throw e;failed++}}}));
+
   return {
-    source: "live",
+    source: "live", coverage:`Up to100repositories and100recent public events. Languages: ${Object.keys(languages).length} of ${Math.min(repos.length,15)} requested (${failed} failed). Not a full contribution history. Events and observed streaks use UTC.`,
     user: {
       login: user.login, name: user.name, avatar_url: user.avatar_url, bio: user.bio,
       location: user.location, company: user.company, twitter: user.twitter_username,
@@ -76,30 +66,10 @@ async function fetchLive(h) {
     repos, events, languages, commits: {}
   };
 }
-async function fetchCommits(h, repo) {
-  const token = localStorage.getItem("commitscape.token");
-  const headers = token ? { Authorization: "Bearer " + token } : {};
-  const r = await fetch(`https://api.github.com/repos/${h}/${repo}/commits?per_page=100`, { headers });
-  if (!r.ok) throw new Error("commits → " + r.status);
-  return (await r.json()).map(c => ({
-    sha: c.sha.slice(0, 7), date: c.commit.author.date,
-    msg: c.commit.message.split("\n")[0], author: c.commit.author.name
-  }));
-}
+async function fetchCommits(h,repo){const c=new AbortController(),timer=setTimeout(()=>c.abort(),20000);try{const rows=await request(`https://api.github.com/repos/${encodeURIComponent(h)}/${encodeURIComponent(repo)}/commits?per_page=100`,c.signal);if(!Array.isArray(rows))throw Error('Invalid commit response');return rows.filter(c=>c && typeof c.sha==='string' && c.commit?.author?.date && !Number.isNaN(Date.parse(c.commit.author.date))).map(c=>({sha:c.sha.slice(0,7),date:c.commit.author.date,msg:String(c.commit.message||'').split('\n')[0],author:String(c.commit.author.name||'')}))}finally{clearTimeout(timer)}}
 
 /* ————— derived ————— */
-function dayCounts(data) {
-  const counts = {};
-  data.events.forEach(e => {
-    const day = e.created_at.slice(0, 10);
-    counts[day] = (counts[day] || 0) + (e.commits || 1);
-  });
-  Object.values(data.commits).flat().forEach(c => {
-    const day = c.date.slice(0, 10);
-    counts[day] = (counts[day] || 0) + 0.5;
-  });
-  return counts;
-}
+function dayCounts(data){const counts={};data.events.forEach(e=>{const day=e.created_at.slice(0,10);counts[day]=(counts[day]||0)+1});return counts}
 function streaks(counts) {
   const days = Object.keys(counts).sort();
   if (!days.length) return { current: 0, longest: 0 };
@@ -138,16 +108,16 @@ function render() {
   const age = Math.floor((Date.now() - new Date(u.created_at)) / 864e5);
   const stars = d.repos.reduce((a, r) => a + r.stars, 0);
   const activeDays = Object.keys(counts).length;
-  const totalEvents = d.events.reduce((a, e) => a + (e.commits || 1), 0);
+  const totalEvents = d.events.length;
 
   $("#data-pill").textContent = d.source === "live" ? "live from api.github.com" : (d.dbLive ? "demo dataset · live from db · synthetic" : "bundled demo · synthetic · " + new Date(d.fetchedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }));
   $("#data-pill").classList.toggle("live", d.source === "live");
   $("#user-input").value = u.login;
 
   $("#app").innerHTML = `
-    ${d.source === "demo" ? `<div class="notice">Showing the <b>${d.dbLive ? "demo dataset, served live from the demo database" : "bundled snapshot"}</b> of @${esc(u.login)} (synthetic demo data, fetched ${new Date(d.fetchedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}). Hit <b>observe</b> for live data — unauthenticated API allows 60 requests/hour.</div>` : ""}
+    ${d.coverage?`<div class="notice">${esc(d.coverage)}</div>`:""}${d.source === "demo" ? `<div class="notice">Showing the <b>${d.dbLive ? "demo dataset, served live from the demo database" : "bundled snapshot"}</b> of @${esc(u.login)} (synthetic demo data, fetched ${new Date(d.fetchedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}). Enter a real username and hit <b>observe</b> for a live snapshot — unauthenticated API allows 60 requests/hour.</div>` : ""}
     <div class="profile">
-      <img class="avatar" src="${esc(u.avatar_url)}" alt="" onerror="this.style.visibility='hidden'">
+      <img class="avatar" src="${esc(/^https:\/\/avatars\.githubusercontent\.com\//.test(u.avatar_url)||d.source==='demo'?u.avatar_url:'')}" alt="" onerror="this.style.visibility='hidden'">
       <div class="profile-main">
         <div class="profile-name">${esc(u.name || u.login)}</div>
         <div class="profile-handle">@${esc(u.login)}</div>
@@ -161,14 +131,14 @@ function render() {
       </div>
     </div>
     <div class="stat-strip">
-      <div class="stat-cell"><div class="stat-num">${u.public_repos}</div><div class="stat-lab">Public repos</div></div>
-      <div class="stat-cell"><div class="stat-num">${totalEvents}</div><div class="stat-lab">Actions · 90 days</div></div>
-      <div class="stat-cell"><div class="stat-num amber">${st.current}<span style="font-size:14px">d</span></div><div class="stat-lab">Current streak</div></div>
-      <div class="stat-cell"><div class="stat-num mint">${st.longest}<span style="font-size:14px">d</span></div><div class="stat-lab">Longest streak</div></div>
-      <div class="stat-cell"><div class="stat-num">${activeDays}</div><div class="stat-lab">Active days · 90d</div></div>
+      <div class="stat-cell"><div class="stat-num">${Number(u.public_repos)||0}</div><div class="stat-lab">Public repos</div></div>
+      <div class="stat-cell"><div class="stat-num">${totalEvents}</div><div class="stat-lab">Events in response</div></div>
+      <div class="stat-cell"><div class="stat-num amber">${st.current}<span style="font-size:14px">d</span></div><div class="stat-lab">Observed current streak</div></div>
+      <div class="stat-cell"><div class="stat-num mint">${st.longest}<span style="font-size:14px">d</span></div><div class="stat-lab">Observed longest streak</div></div>
+      <div class="stat-cell"><div class="stat-num">${activeDays}</div><div class="stat-lab">Observed active days</div></div>
     </div>
 
-    <div class="section"><div class="section-head"><span class="section-title">ACTIVITY FIELD</span><span class="section-note">public events + commits, last 52 weeks</span></div>
+    <div class="section"><div class="section-head"><span class="section-title">ACTIVITY FIELD</span><span class="section-note">Recent event sample, not a contribution graph</span></div>
       <div class="heatmap-wrap">${heatmapHTML(counts)}</div>
     </div>
 
@@ -180,9 +150,9 @@ function render() {
     <div class="section"><div class="section-head"><span class="section-title">REPOSITORIES</span><span class="section-note">${d.repos.length} public</span></div>
       <div class="table-wrap"><table class="repo-table"><thead><tr><th>Name</th><th>Language</th><th class="num">★</th><th class="num">Forks</th><th class="num">Updated</th></tr></thead>
       <tbody>${d.repos.map(r => `<tr>
-        <td><a class="repo-name" href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a>${r.description ? `<div class="repo-desc">${esc(r.description)}</div>` : ""}</td>
+        <td><a class="repo-name" href="${esc(d.source==='demo'?'#':/^https:\/\/github\.com\//.test(r.url)?r.url:'#')}" target="_blank" rel="noopener">${esc(r.name)}</a>${r.description ? `<div class="repo-desc">${esc(r.description)}</div>` : ""}</td>
         <td>${r.language ? `<span class="repo-lang"><span class="lang-dot" style="background:${langColor(r.language)}"></span>${esc(r.language)}</span>` : `<span style="color:var(--ink-3)">—</span>`}</td>
-        <td class="num">${r.stars}</td><td class="num">${r.forks}</td>
+        <td class="num">${Number(r.stars)||0}</td><td class="num">${Number(r.forks)||0}</td>
         <td class="num">${new Date(r.updated_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</td></tr>`).join("")}</tbody></table></div>
     </div>
 
@@ -209,8 +179,8 @@ function render() {
   if (!artRepo || !repoNames.includes(artRepo)) artRepo = repoNames[0];
   $("#art-repos").innerHTML = repoNames.map(n => `<button class="chip ${artRepo === n ? "on" : ""}" data-repo="${esc(n)}">${esc(n)}</button>`).join("");
   $$("#art-repos .chip").forEach(c => c.addEventListener("click", () => { artRepo = c.dataset.repo; drawArt(); renderArtChipsOnly(); }));
-  $$("[data-style]").forEach(c => c.addEventListener("click", () => { artStyle = c.dataset.style; drawArt(); render(); }));
-  $$("[data-pal]").forEach(c => c.addEventListener("click", () => { artPalette = c.dataset.pal; drawArt(); render(); }));
+  $$("[data-style]").forEach(c => c.addEventListener("click", () => { artStyle = c.dataset.style; render(); }));
+  $$("[data-pal]").forEach(c => c.addEventListener("click", () => { artPalette = c.dataset.pal; render(); }));
   $("#art-download").addEventListener("click", () => {
     const a = document.createElement("a");
     a.download = `commitscape-${handle}-${artRepo}-${artStyle}.png`;
@@ -225,29 +195,33 @@ function renderArtChipsOnly() {
 }
 
 async function drawArt() {
-  const canvas = $("#art-canvas");
+  const canvas = $("#art-canvas"),version=++artVersion,data=DATA,repo=artRepo;
   if (!canvas) return;
+  if(!repo){$("#art-caption").textContent="No public repositories in this snapshot.";return;}
   let commits = DATA.commits[artRepo];
   if (!commits) {
     $("#art-caption").innerHTML = "fetching commits…";
     try {
-      commits = await fetchCommits(handle, artRepo);
-      DATA.commits[artRepo] = commits;
+      commits = await fetchCommits(data.user.login, repo);
+      if(version!==artVersion || DATA!==data || repo!==artRepo)return;
+      data.commits[repo] = commits;
     } catch (e) {
-      $("#art-caption").innerHTML = "Could not fetch commits for <b>" + esc(artRepo) + "</b> (rate limit or private repo). Try another repo, or add a token in the console: localStorage.setItem('commitscape.token','ghp_…').";
+      if(version!==artVersion || DATA!==data)return;
+      $("#art-caption").textContent = "Commit fetch failed or timed out. Try another public repository later. No token is required or accepted.";
       const ctx = canvas.getContext("2d"); ctx.clearRect(0, 0, canvas.width, canvas.height);
       return;
     }
   }
+  if(version!==artVersion || DATA!==data)return;
   if (!commits.length) { $("#art-caption").textContent = "No commits yet in " + artRepo + "."; return; }
   renderCommitscape(canvas, commits, artStyle, artPalette, cap => {
-    $("#art-caption").innerHTML = `<b>${esc(artRepo)}</b> · ${commits.length} commits · style <b>${artStyle}</b> · palette <b>${artPalette}</b><br>${cap}`;
-  });
+    $("#art-caption").innerHTML = `<b>${esc(artRepo)}</b> · ${commits.length} ${DATA.source==='demo'?'synthetic commits':'recent commits (maximum100)'} · style <b>${artStyle}</b> · palette <b>${artPalette}</b><br>${cap}`;
+  }, DATA.source==='demo');
 }
 
 /* ————— heatmap ————— */
 function heatmapHTML(counts) {
-  const weeks = 52;
+  const weeks = 16;
   const cells = [];
   const now = new Date();
   const start = new Date(now.getTime() - (weeks * 7 + now.getDay()) * 864e5);
@@ -271,23 +245,15 @@ function heatmapHTML(counts) {
 }
 
 /* ————— boot ————— */
-async function load(h, forceLive) {
-  handle = h;
-  localStorage.setItem("commitscape.handle", h);
-  $("#app").innerHTML = `<div class="loading">observing @${esc(h)}</div>`;
-  try {
-    if (forceLive || h.toLowerCase() !== "commitscape-demo") DATA = await fetchLive(h);
-    else DATA = normalizeDemo();
-  } catch (e) {
-    if (h.toLowerCase() === "commitscape-demo") {
-      DATA = normalizeDemo();
-      toast("API unavailable — showing bundled snapshot");
-    } else {
-      $("#app").innerHTML = `<div class="notice">Live fetch failed: <b>${esc(e.message)}</b>. GitHub allows 60 unauthenticated requests/hour per IP. Add a token in the console for 5,000: <b>localStorage.setItem('commitscape.token','ghp_…')</b> then retry.</div>`;
-      return;
-    }
-  }
-  render();
+async function load(h,forceLive){
+ if(!validHandle(h)){toast('Enter a valid GitHub username (1–39letters/digits/hyphens).');return}
+ activeController?.abort();const c=new AbortController();activeController=c;const version=++loadVersion;artVersion++;handle=h;
+ try{localStorage.setItem('commitscape.handle',h)}catch{}
+ $('#app').innerHTML=`<div class="loading">observing @${esc(h)} <button id="cancel-load">Cancel</button></div>`;
+ $('#cancel-load').onclick=()=>c.abort();const timer=setTimeout(()=>c.abort(),30000);
+ try{const data=(h.toLowerCase()==='commitscape-demo')?normalizeDemo():await fetchLive(h,c.signal);if(version!==loadVersion)return;DATA=data;render()}
+ catch(e){if(version!==loadVersion)return;$('#app').innerHTML=`<div class="notice">${esc(c.signal.aborted?'Request cancelled or timed out.':e.message)} <button id="demo-load">Show synthetic demo</button></div>`;$('#demo-load').onclick=()=>load('commitscape-demo',false)}
+ finally{clearTimeout(timer)}
 }
 
 $("#user-form").addEventListener("submit", e => {
