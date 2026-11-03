@@ -5,24 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Commitscape — a GitHub observatory</title>
 <meta name="description" content="Point it at any GitHub handle. Languages, activity, streaks — and your commit history rendered as art.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+
+
+<link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="styles.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='15' y='15' width='30' height='30' fill='%23e8b23a'/><rect x='55' y='55' width='30' height='30' fill='%233da87a'/></svg>">
-</head>
+<link rel="canonical" href="https://aditya2375.github.io/commitscape/"><meta property="og:title" content="Commitscape - GitHub observatory"><meta property="og:description" content="A bounded public activity snapshot and commit-inspired prints. Synthetic demo available."><meta property="og:type" content="website"><meta property="og:url" content="https://aditya2375.github.io/commitscape/"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; font-src 'self' data:; img-src 'self' data: https://avatars.githubusercontent.com; connect-src https://api.github.com; script-src 'self'; style-src 'self' 'unsafe-inline'; base-uri 'none'; object-src 'none'; form-action 'none'"></head>
 <body>
 <header class="topbar">
   <span class="brand">COMMITSCAPE<span class="brand-sub">a github observatory</span></span>
   <form id="user-form" class="user-form">
     <span class="prompt">@</span>
-    <input id="user-input" placeholder="any github handle" autocomplete="off" spellcheck="false">
+    <input aria-label="Public GitHub username" maxlength="39" id="user-input" placeholder="any github handle" autocomplete="off" spellcheck="false">
     <button type="submit" class="go-btn">observe</button>
   </form>
   <span class="data-pill" id="data-pill"></span>
 </header>
 <main id="app"></main>
-<footer class="colophon"><p>Reads the public GitHub API. Nothing is stored server-side; there is no server.</p></footer>
+<footer class="colophon"><p>Reads a bounded public GitHub API snapshot, not the full contribution graph. Username is saved locally; no token is accepted. <a href="mailto:adityakulkarnicoding@gmail.com">Support</a></p></footer>
 <script src="demo-data.js"></script>
 <script src="art.js"></script>
 <script src="app.js"></script>
