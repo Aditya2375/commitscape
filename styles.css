@@ -165,3 +165,5 @@ th.num { text-align: right; }
 
 /* mobile: let wide tables scroll inside their panel */
 .table-wrap { overflow-x: auto; }
+
+:focus-visible{outline:2px solid #e8b23a;outline-offset:4px}.profile-name,.profile-bio,.repo-name,.repo-desc,.notice{overflow-wrap:anywhere}.art-caption{line-height:1.6}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
